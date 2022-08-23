@@ -112,12 +112,6 @@ func ListSecrets(kc client.Client, w io.Writer) error {
 	return nil
 }
 
-var cmKeys = []string{
-	"ca.crt",
-	"client-ca-file",
-	"requestheader-client-ca-file",
-}
-
 func ListConfigMaps(kc client.Client, w io.Writer) error {
 	var list core.ConfigMapList
 	err := kc.List(context.TODO(), &list)
@@ -125,14 +119,17 @@ func ListConfigMaps(kc client.Client, w io.Writer) error {
 		return err
 	}
 	for _, item := range list.Items {
-		if item.Name == "kube-root-ca.crt" || item.Name == "extension-apiserver-authentication" {
-			for _, k := range cmKeys {
-				if v, ok := item.Data[k]; ok {
-					if crts, err := cert.ParseCertsPEM([]byte(v)); err == nil {
-						for _, crt := range crts {
-							fmt.Fprintf(w, "CFGMAP\t%s/%s\t%s\t%v\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber)
-						}
-					}
+		for k, v := range item.Data {
+			if crts, err := cert.ParseCertsPEM([]byte(v)); err == nil {
+				for _, crt := range crts {
+					fmt.Fprintf(w, "CFGMAP\t%s/%s\t%s\t%v\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber)
+				}
+			}
+		}
+		for k, v := range item.BinaryData {
+			if crts, err := cert.ParseCertsPEM(v); err == nil {
+				for _, crt := range crts {
+					fmt.Fprintf(w, "CFGMAP\t%s/%s\t%s\t%v\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber)
 				}
 			}
 		}
