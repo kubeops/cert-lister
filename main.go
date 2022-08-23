@@ -82,6 +82,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	err = ListConfigMaps(kc, w)
+	if err != nil {
+		panic(err)
+	}
 	err = ListAPIServices(kc, w)
 	if err != nil {
 		panic(err)
@@ -101,7 +105,35 @@ func ListSecrets(kc client.Client, w io.Writer) error {
 			if v, ok := item.Data[core.TLSCertKey]; ok {
 				if crts, err := cert.ParseCertsPEM(v); err == nil {
 					for _, crt := range crts {
-						fmt.Fprintf(w, "SECRET\t%s/%s\t%v\n", item.GetNamespace(), item.GetName(), crt.SerialNumber)
+						fmt.Fprintf(w, "SECRET\t%s/%s\t%s\t%v\n", item.GetNamespace(), item.GetName(), core.TLSCertKey, crt.SerialNumber)
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+var cmKeys = []string{
+	"ca.crt",
+	"client-ca-file",
+	"requestheader-client-ca-file",
+}
+
+func ListConfigMaps(kc client.Client, w io.Writer) error {
+	var list core.ConfigMapList
+	err := kc.List(context.TODO(), &list)
+	if err != nil {
+		return err
+	}
+	for _, item := range list.Items {
+		if item.Name == "kube-root-ca.crt" || item.Name == "extension-apiserver-authentication" {
+			for _, k := range cmKeys {
+				if v, ok := item.Data[k]; ok {
+					if crts, err := cert.ParseCertsPEM([]byte(v)); err == nil {
+						for _, crt := range crts {
+							fmt.Fprintf(w, "CFGMAP\t%s/%s\t%s\t%v\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber)
+						}
 					}
 				}
 			}
@@ -120,7 +152,7 @@ func ListAPIServices(kc client.Client, w io.Writer) error {
 		if len(item.Spec.CABundle) > 0 {
 			if crts, err := cert.ParseCertsPEM(item.Spec.CABundle); err == nil {
 				for _, crt := range crts {
-					fmt.Fprintf(w, "APISVC\t%s\t%v\n", item.GetName(), crt.SerialNumber)
+					fmt.Fprintf(w, "APISVC\t%s\t%s\t%v\n", item.GetName(), "spec.caBundle", crt.SerialNumber)
 				}
 			}
 		}
