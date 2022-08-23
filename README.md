@@ -2,7 +2,10 @@
 
 ```
 > go run main.go
+SECRET kubedb/kubedb-kubedb-provisioner-license           key.txt                      7958275879838045348
+SECRET kubedb/kubedb-kubedb-webhook-server-apiserver-cert ca.crt                       196830156477330672160882529336709569966
 SECRET kubedb/kubedb-kubedb-webhook-server-apiserver-cert tls.crt                      136749661798657898788018791024910026265
+SECRET kubedb/kubedb-kubedb-webhook-server-license        key.txt                      7958275879838045348
 CFGMAP default/kube-root-ca.crt                           ca.crt                       0
 CFGMAP kube-node-lease/kube-root-ca.crt                   ca.crt                       0
 CFGMAP kube-public/kube-root-ca.crt                       ca.crt                       0

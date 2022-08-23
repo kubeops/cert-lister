@@ -101,12 +101,10 @@ func ListSecrets(kc client.Client, w io.Writer) error {
 		return err
 	}
 	for _, item := range list.Items {
-		if item.Type == core.SecretTypeTLS {
-			if v, ok := item.Data[core.TLSCertKey]; ok {
-				if crts, err := cert.ParseCertsPEM(v); err == nil {
-					for _, crt := range crts {
-						fmt.Fprintf(w, "SECRET\t%s/%s\t%s\t%v\n", item.GetNamespace(), item.GetName(), core.TLSCertKey, crt.SerialNumber)
-					}
+		for k, v := range item.Data {
+			if crts, err := cert.ParseCertsPEM(v); err == nil {
+				for _, crt := range crts {
+					fmt.Fprintf(w, "SECRET\t%s/%s\t%s\t%v\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber)
 				}
 			}
 		}
