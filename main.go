@@ -22,11 +22,13 @@ import (
 	"io"
 	"os"
 	"text/tabwriter"
+	"time"
 
 	cmscheme "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/scheme"
 	"gomodules.xyz/cert"
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/duration"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2/klogr"
 	aggapi "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -77,6 +79,7 @@ func main() {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
+	fmt.Fprintln(w, "KIND\tNAME\tKEY\tSERIAL NUMBER\tAge")
 
 	err = ListSecrets(kc, w)
 	if err != nil {
@@ -104,7 +107,7 @@ func ListSecrets(kc client.Client, w io.Writer) error {
 		for k, v := range item.Data {
 			if crts, err := cert.ParseCertsPEM(v); err == nil {
 				for _, crt := range crts {
-					fmt.Fprintf(w, "SECRET\t%s/%s\t%s\t%v\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber)
+					fmt.Fprintf(w, "SECRET\t%s/%s\t%s\t%v\t%s\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber, ConvertToHumanReadableDateType(crt.NotAfter))
 				}
 			}
 		}
@@ -122,14 +125,14 @@ func ListConfigMaps(kc client.Client, w io.Writer) error {
 		for k, v := range item.Data {
 			if crts, err := cert.ParseCertsPEM([]byte(v)); err == nil {
 				for _, crt := range crts {
-					fmt.Fprintf(w, "CFGMAP\t%s/%s\t%s\t%v\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber)
+					fmt.Fprintf(w, "CFGMAP\t%s/%s\t%s\t%v\t%s\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber, ConvertToHumanReadableDateType(crt.NotAfter))
 				}
 			}
 		}
 		for k, v := range item.BinaryData {
 			if crts, err := cert.ParseCertsPEM(v); err == nil {
 				for _, crt := range crts {
-					fmt.Fprintf(w, "CFGMAP\t%s/%s\t%s\t%v\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber)
+					fmt.Fprintf(w, "CFGMAP\t%s/%s\t%s\t%v\t%s\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber, ConvertToHumanReadableDateType(crt.NotAfter))
 				}
 			}
 		}
@@ -147,10 +150,28 @@ func ListAPIServices(kc client.Client, w io.Writer) error {
 		if len(item.Spec.CABundle) > 0 {
 			if crts, err := cert.ParseCertsPEM(item.Spec.CABundle); err == nil {
 				for _, crt := range crts {
-					fmt.Fprintf(w, "APISVC\t%s\t%s\t%v\n", item.GetName(), "spec.caBundle", crt.SerialNumber)
+					fmt.Fprintf(w, "APISVC\t%s\t%s\t%v\t%s\n", item.GetName(), "spec.caBundle", crt.SerialNumber, ConvertToHumanReadableDateType(crt.NotAfter))
 				}
 			}
 		}
 	}
 	return nil
+}
+
+// ConvertToHumanReadableDateType returns the elapsed time since timestamp in
+// human-readable approximation.
+// ref: https://github.com/kubernetes/apimachinery/blob/v0.21.1/pkg/api/meta/table/table.go#L63-L70
+// But works for timestamp before or after now.
+func ConvertToHumanReadableDateType(timestamp time.Time) string {
+	if timestamp.IsZero() {
+		return "<unknown>"
+	}
+	var d time.Duration
+	now := time.Now()
+	if now.After(timestamp) {
+		d = now.Sub(timestamp)
+	} else {
+		d = timestamp.Sub(now)
+	}
+	return duration.HumanDuration(d)
 }
