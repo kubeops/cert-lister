@@ -1,7 +1,9 @@
 # cert-lister
 
 ```
-> go run main.go
+# Use the version matching your os and cpu architecture
+> ./cert-lister-****
+
 SECRET kubedb/kubedb-kubedb-provisioner-license           key.txt                      7958275879838045348
 SECRET kubedb/kubedb-kubedb-webhook-server-apiserver-cert ca.crt                       196830156477330672160882529336709569966
 SECRET kubedb/kubedb-kubedb-webhook-server-apiserver-cert tls.crt                      136749661798657898788018791024910026265
