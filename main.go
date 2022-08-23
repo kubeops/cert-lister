@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/duration"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/klog/v2/klogr"
 	aggapi "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	aggscheme "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/scheme"
