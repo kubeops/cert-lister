@@ -169,10 +169,12 @@ func ConvertToHumanReadableDateType(timestamp time.Time) string {
 	}
 	var d time.Duration
 	now := time.Now()
+	var sign string
 	if now.After(timestamp) {
 		d = now.Sub(timestamp)
+		sign = "- "
 	} else {
 		d = timestamp.Sub(now)
 	}
-	return duration.HumanDuration(d)
+	return sign + duration.HumanDuration(d)
 }
