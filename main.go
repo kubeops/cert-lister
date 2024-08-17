@@ -32,7 +32,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2"
 	aggapi "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	aggscheme "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,7 +41,7 @@ import (
 )
 
 func NewUncachedClient() (client.Client, error) {
-	ctrl.SetLogger(klogr.New())
+	ctrl.SetLogger(klog.NewKlogr())
 	cfg := ctrl.GetConfigOrDie()
 	cfg.QPS = 100
 	cfg.Burst = 100
