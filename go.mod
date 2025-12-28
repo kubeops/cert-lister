@@ -3,7 +3,7 @@ module kubeops.dev/cert-lister
 go 1.24.0
 
 require (
-	github.com/cert-manager/cert-manager v1.15.2
+	github.com/cert-manager/cert-manager v1.15.4
 	gomodules.xyz/cert v1.6.0
 	k8s.io/api v0.34.3
 	k8s.io/apimachinery v0.34.3
