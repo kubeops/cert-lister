@@ -85,7 +85,7 @@ func main() {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
-	_, _ = fmt.Fprintln(w, "KIND\tNAME\tKEY\tSERIAL NUMBER\tCN\tAge")
+	fmt.Fprintln(w, "KIND\tNAME\tKEY\tSERIAL NUMBER\tCN\tAge")
 
 	err = ListSecrets(kc, w)
 	if err != nil {
@@ -100,7 +100,7 @@ func main() {
 		panic(err)
 	}
 
-	_ = w.Flush()
+	w.Flush()
 }
 
 func ListSecrets(kc client.Client, w io.Writer) error {
@@ -113,7 +113,7 @@ func ListSecrets(kc client.Client, w io.Writer) error {
 		for k, v := range item.Data {
 			if crts, err := cert.ParseCertsPEM(v); err == nil {
 				for _, crt := range crts {
-					_, _ = fmt.Fprintf(w, "SECRET\t%s/%s\t%s\t%v\t%s\t%s\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber, crt.Subject.CommonName, ConvertToHumanReadableDateType(crt.NotAfter))
+					fmt.Fprintf(w, "SECRET\t%s/%s\t%s\t%v\t%s\t%s\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber, crt.Subject.CommonName, ConvertToHumanReadableDateType(crt.NotAfter))
 				}
 			}
 		}
@@ -131,14 +131,14 @@ func ListConfigMaps(kc client.Client, w io.Writer) error {
 		for k, v := range item.Data {
 			if crts, err := cert.ParseCertsPEM([]byte(v)); err == nil {
 				for _, crt := range crts {
-					_, _ = fmt.Fprintf(w, "CFGMAP\t%s/%s\t%s\t%v\t%s\t%s\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber, crt.Subject.CommonName, ConvertToHumanReadableDateType(crt.NotAfter))
+					fmt.Fprintf(w, "CFGMAP\t%s/%s\t%s\t%v\t%s\t%s\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber, crt.Subject.CommonName, ConvertToHumanReadableDateType(crt.NotAfter))
 				}
 			}
 		}
 		for k, v := range item.BinaryData {
 			if crts, err := cert.ParseCertsPEM(v); err == nil {
 				for _, crt := range crts {
-					_, _ = fmt.Fprintf(w, "CFGMAP\t%s/%s\t%s\t%v\t%s\t%s\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber, crt.Subject.CommonName, ConvertToHumanReadableDateType(crt.NotAfter))
+					fmt.Fprintf(w, "CFGMAP\t%s/%s\t%s\t%v\t%s\t%s\n", item.GetNamespace(), item.GetName(), k, crt.SerialNumber, crt.Subject.CommonName, ConvertToHumanReadableDateType(crt.NotAfter))
 				}
 			}
 		}
@@ -156,7 +156,7 @@ func ListAPIServices(kc client.Client, w io.Writer) error {
 		if len(item.Spec.CABundle) > 0 {
 			if crts, err := cert.ParseCertsPEM(item.Spec.CABundle); err == nil {
 				for _, crt := range crts {
-					_, _ = fmt.Fprintf(w, "APISVC\t%s\t%s\t%v\t%s\t%s\n", item.GetName(), "spec.caBundle", crt.SerialNumber, crt.Subject.CommonName, ConvertToHumanReadableDateType(crt.NotAfter))
+					fmt.Fprintf(w, "APISVC\t%s\t%s\t%v\t%s\t%s\n", item.GetName(), "spec.caBundle", crt.SerialNumber, crt.Subject.CommonName, ConvertToHumanReadableDateType(crt.NotAfter))
 				}
 			}
 		}
