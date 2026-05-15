@@ -30,12 +30,8 @@ import (
 // AppendFunc is used to add a matching item to whatever list the caller is using
 type AppendFunc func(interface{})
 
-// ListAll lists items in the store matching the given selector, calling appendFn on each one.
+// ListAll calls appendFn with each value retrieved from store which matches the selector.
 func ListAll(store Store, selector labels.Selector, appendFn AppendFunc) error {
-	if labels.MatchesNothing(selector) {
-		return nil
-	}
-
 	selectAll := selector.Empty()
 	for _, m := range store.List() {
 		if selectAll {
@@ -55,14 +51,8 @@ func ListAll(store Store, selector labels.Selector, appendFn AppendFunc) error {
 	return nil
 }
 
-// ListAllByNamespace lists items in the given namespace in the store matching the given selector,
-// calling appendFn on each one.
-// If a blank namespace (NamespaceAll) is specified, this delegates to ListAll().
+// ListAllByNamespace used to list items belongs to namespace from Indexer.
 func ListAllByNamespace(indexer Indexer, namespace string, selector labels.Selector, appendFn AppendFunc) error {
-	if labels.MatchesNothing(selector) {
-		return nil
-	}
-
 	if namespace == metav1.NamespaceAll {
 		return ListAll(indexer, selector, appendFn)
 	}
@@ -70,12 +60,7 @@ func ListAllByNamespace(indexer Indexer, namespace string, selector labels.Selec
 	items, err := indexer.Index(NamespaceIndex, &metav1.ObjectMeta{Namespace: namespace})
 	if err != nil {
 		// Ignore error; do slow search without index.
-		//
-		// ListAllByNamespace is called by generated code
-		// (k8s.io/client-go/listers) and probably not worth converting
-		// to contextual logging, which would require changing all of
-		// those APIs.
-		klog.TODO().Info("Warning: can not retrieve list of objects using index", "err", err)
+		klog.Warningf("can not retrieve list of objects using index : %v", err)
 		for _, m := range indexer.List() {
 			metadata, err := meta.Accessor(m)
 			if err != nil {

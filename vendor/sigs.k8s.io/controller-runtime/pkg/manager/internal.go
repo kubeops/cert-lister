@@ -187,7 +187,7 @@ func (cm *controllerManager) AddMetricsServerExtraHandler(path string, handler h
 		return fmt.Errorf("unable to add new metrics handler because metrics endpoint has already been created")
 	}
 	if cm.metricsServer == nil {
-		cm.GetLogger().Info("warn: metrics server is currently disabled, registering extra handler will be ignored", "path", path)
+		cm.GetLogger().Info("warn: metrics server is currently disabled, registering extra handler %q will be ignored", path)
 		return nil
 	}
 	if err := cm.metricsServer.AddExtraHandler(path, handler); err != nil {
@@ -351,16 +351,6 @@ func (cm *controllerManager) Start(ctx context.Context) (err error) {
 	// Initialize the internal context.
 	cm.internalCtx, cm.internalCancel = context.WithCancel(ctx)
 
-	// Leader elector must be created before defer that contains engageStopProcedure function
-	// https://github.com/kubernetes-sigs/controller-runtime/issues/2873
-	var leaderElector *leaderelection.LeaderElector
-	if cm.resourceLock != nil {
-		leaderElector, err = cm.initLeaderElector()
-		if err != nil {
-			return fmt.Errorf("failed during initialization leader election process: %w", err)
-		}
-	}
-
 	// This chan indicates that stop is complete, in other words all runnables have returned or timeout on stop request
 	stopComplete := make(chan struct{})
 	defer close(stopComplete)
@@ -439,31 +429,23 @@ func (cm *controllerManager) Start(ctx context.Context) (err error) {
 		return fmt.Errorf("failed to start other runnables: %w", err)
 	}
 
-	// Start WarmupRunnables and wait for warmup to complete.
-	if err := cm.runnables.Warmup.Start(cm.internalCtx); err != nil {
-		return fmt.Errorf("failed to start warmup runnables: %w", err)
-	}
-
 	// Start the leader election and all required runnables.
 	{
 		ctx, cancel := context.WithCancel(context.Background())
 		cm.leaderElectionCancel = cancel
-		if leaderElector != nil {
-			// Start the leader elector process
-			go func() {
-				leaderElector.Run(ctx)
-				<-ctx.Done()
-				close(cm.leaderElectionStopped)
-			}()
-		} else {
-			go func() {
+		go func() {
+			if cm.resourceLock != nil {
+				if err := cm.startLeaderElection(ctx); err != nil {
+					cm.errChan <- err
+				}
+			} else {
 				// Treat not having leader election enabled the same as being elected.
 				if err := cm.startLeaderElectionRunnables(); err != nil {
 					cm.errChan <- err
 				}
 				close(cm.elected)
-			}()
-		}
+			}
+		}()
 	}
 
 	ready = true
@@ -512,8 +494,8 @@ func (cm *controllerManager) engageStopProcedure(stopComplete <-chan struct{}) e
 				cm.internalCancel()
 			})
 			select {
-			case err := <-cm.errChan:
-				if !errors.Is(err, context.Canceled) {
+			case err, ok := <-cm.errChan:
+				if ok {
 					cm.logger.Error(err, "error received after stop sequence was engaged")
 				}
 			case <-stopComplete:
@@ -539,18 +521,6 @@ func (cm *controllerManager) engageStopProcedure(stopComplete <-chan struct{}) e
 	}()
 
 	go func() {
-		go func() {
-			// Stop the warmup runnables in a separate goroutine to avoid blocking.
-			// It is important to stop the warmup runnables in parallel with the other runnables
-			// since we cannot assume ordering of whether or not one of the warmup runnables or one
-			// of the other runnables is holding a lock.
-			// Cancelling the wrong runnable (one that is not holding the lock) will cause the
-			// shutdown sequence to block indefinitely as it will wait for the runnable that is
-			// holding the lock to finish.
-			cm.logger.Info("Stopping and waiting for warmup runnables")
-			cm.runnables.Warmup.StopAndWait(cm.shutdownCtx)
-		}()
-
 		// First stop the non-leader election runnables.
 		cm.logger.Info("Stopping and waiting for non leader election runnables")
 		cm.runnables.Others.StopAndWait(cm.shutdownCtx)
@@ -594,8 +564,12 @@ func (cm *controllerManager) engageStopProcedure(stopComplete <-chan struct{}) e
 	return nil
 }
 
-func (cm *controllerManager) initLeaderElector() (*leaderelection.LeaderElector, error) {
-	leaderElector, err := leaderelection.NewLeaderElector(leaderelection.LeaderElectionConfig{
+func (cm *controllerManager) startLeaderElectionRunnables() error {
+	return cm.runnables.LeaderElection.Start(cm.internalCtx)
+}
+
+func (cm *controllerManager) startLeaderElection(ctx context.Context) (err error) {
+	l, err := leaderelection.NewLeaderElector(leaderelection.LeaderElectionConfig{
 		Lock:          cm.resourceLock,
 		LeaseDuration: cm.leaseDuration,
 		RenewDeadline: cm.renewDeadline,
@@ -625,14 +599,16 @@ func (cm *controllerManager) initLeaderElector() (*leaderelection.LeaderElector,
 		Name:            cm.leaderElectionID,
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return leaderElector, nil
-}
-
-func (cm *controllerManager) startLeaderElectionRunnables() error {
-	return cm.runnables.LeaderElection.Start(cm.internalCtx)
+	// Start the leader elector process
+	go func() {
+		l.Run(ctx)
+		<-ctx.Done()
+		close(cm.leaderElectionStopped)
+	}()
+	return nil
 }
 
 func (cm *controllerManager) Elected() <-chan struct{} {
