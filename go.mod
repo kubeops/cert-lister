@@ -5,7 +5,7 @@ go 1.22.0
 toolchain go1.22.2
 
 require (
-	github.com/cert-manager/cert-manager v1.15.2
+	github.com/cert-manager/cert-manager v1.15.4
 	gomodules.xyz/cert v1.6.0
 	k8s.io/api v0.30.1
 	k8s.io/apimachinery v0.30.1
